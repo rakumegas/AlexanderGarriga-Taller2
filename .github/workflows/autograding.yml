@@ -1,0 +1,161 @@
+name: Evaluacion Automatica - Taller Elementos Basicos Java
+
+on: [push]
+
+jobs:
+  evaluacion-java:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 1. Descargar codigo del estudiante
+        uses: actions/checkout@v3
+
+      - name: 2. Configurar Java JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: 3. Configurar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: 4. Evaluacion Automatica de Niveles 1, 2 y 3 (100 PTS)
+        run: |
+          python -c "
+          import os, sys, subprocess, re
+
+          print('🔍 Analizando entregables de PerfilEstudianteUTP.java...\n')
+
+          filepath = None
+          for root, dirs, files in os.walk('.'):
+              if 'PerfilEstudianteUTP.java' in files:
+                  filepath = os.path.join(root, 'PerfilEstudianteUTP.java')
+                  break
+
+          if not filepath:
+              print('❌ ERROR CRÍTICO: No se encontró el archivo PerfilEstudianteUTP.java.')
+              sys.exit(1)
+
+          with open(filepath, 'r', encoding='utf-8') as f:
+              code = f.read()
+
+          score = 0
+          report = []
+
+          # ==========================================
+          # NIVEL 1: IDENTIFICADORES Y TIPOS (35 PTS)
+          # ==========================================
+          p_n1 = 0
+
+          # TODO 2.1: Identificador 1erNombre corregido
+          if not re.search(r'\b\d+[a-zA-Z0-9_]+\s*=', code):
+              p_n1 += 7
+          else:
+              report.append('  ❌ [Nivel 1] Aún existe una variable ilegal que inicia con número (1erNombre).')
+
+          # TODO 2.2: Identificador creditos-matriculados corregido
+          if not re.search(r'\b[a-zA-Z_]+-[a-zA-Z0-9_]+\b\s*=', code):
+              p_n1 += 7
+          else:
+              report.append('  ❌ [Nivel 1] Aún existe un identificador con guión medio (creditos-matriculados). Use camelCase.')
+
+          # TODO 2.3: costoCredito como double
+          if re.search(r'double\s+costoCredito\s*=\s*15\.50', code) or re.search(r'double\s+[a-zA-Z0-9_]+\s*=\s*15\.50', code):
+              p_n1 += 7
+          else:
+              report.append('  ❌ [Nivel 1] El costo del crédito (15.50) debe ser de tipo double.')
+
+          # TODO 2.4: estaPazYSalvo como boolean
+          if re.search(r'boolean\s+[a-zA-Z0-9_]+\s*=\s*(true|false)', code):
+              p_n1 += 7
+          else:
+              report.append('  ❌ [Nivel 1] La variable estaPazYSalvo debe ser de tipo primitivo boolean (sin comillas).')
+
+          # TODO 2.5: Variable char declarada
+          if re.search(r'char\s+inicialSegundoNombre\s*=', code):
+              p_n1 += 7
+          else:
+              report.append('  ❌ [Nivel 1] Falta declarar la variable char inicialSegundoNombre.')
+
+          score += p_n1
+          print('🟢 NIVEL 1 (Identificadores y Tipos Primitivos): ' + str(p_n1) + '/35 pts')
+
+          # ==========================================
+          # NIVEL 2: CONSTANTES Y JAVADOC (35 PTS)
+          # ==========================================
+          p_n2 = 0
+
+          # TODO 1: Javadoc
+          if '/**' in code and '*/' in code:
+              p_n2 += 5
+              if '@author' in code and 'TU NOMBRE' not in code.upper() and 'CÉDULA' not in code.upper():
+                  p_n2 += 5
+              else:
+                  report.append('  ❌ [Nivel 2] Debe reemplazar TU NOMBRE Y CÉDULA por sus datos en la etiqueta @author.')
+
+              if '@version' in code:
+                  p_n2 += 5
+              else:
+                  report.append('  ❌ [Nivel 2] Falta incluir la etiqueta @version en el Javadoc.')
+          else:
+              report.append('  ❌ [Nivel 2] No convirtió el comentario inicial a formato Javadoc oficial (/** ... */).')
+
+          # TODO 3.1: Constante final y UPPER_SNAKE_CASE
+          if re.search(r'final\s+double\s+[A-Z0-9_]+\s*=\s*5\.00', code):
+              p_n2 += 10
+          else:
+              report.append('  ❌ [Nivel 2] La cuota de carné debe declararse con final y en mayúsculas (ej: CARNET_ESTUDIANTIL).')
+
+          # TODO 3.2: Inmutabilidad
+          if not re.search(r'(carnet_estudiantil|CARNET_ESTUDIANTIL)\s*=\s*10\.00', code):
+              p_n2 += 10
+          else:
+              report.append('  ❌ [Nivel 2] Debe eliminar la línea que intenta reasignar el valor de la constante a 10.00.')
+
+          score += p_n2
+          print('🟡 NIVEL 2 (Constantes e Inmutabilidad & Javadoc): ' + str(p_n2) + '/35 pts')
+
+          # ==========================================
+          # NIVEL 3: COMPILACIÓN Y SALIDA (30 PTS)
+          # ==========================================
+          p_n3 = 0
+          file_dir = os.path.dirname(filepath) or '.'
+
+          comp = subprocess.run(['javac', filepath], capture_output=True, text=True)
+          if comp.returncode == 0:
+              p_n3 += 15
+              run_res = subprocess.run(['java', '-cp', file_dir, 'PerfilEstudianteUTP'], capture_output=True, text=True)
+              salida = run_res.stdout
+
+              if '284' in salida:
+                  p_n3 += 15
+              else:
+                  report.append('  ⚠️ [Nivel 3] La salida no muestra el cálculo del total correcto ($284.00).')
+          else:
+              report.append('  ❌ [Nivel 3] El archivo no compila. Revise errores de sintaxis o nombres de variables.')
+
+          score += p_n3
+          print('🟣 NIVEL 3 (Compilación y Ejecución en Consola): ' + str(p_n3) + '/30 pts')
+
+          # ==========================================
+          # RESULTADO FINAL
+          # ==========================================
+          print('\n------------------------------------------')
+          print('📊 CALIFICACIÓN FINAL: ' + str(score) + ' / 100 PTS')
+          print('------------------------------------------\n')
+
+          if report:
+              print('📌 Observaciones por corregir:')
+              for msg in report:
+                  print(msg)
+              print('\n')
+
+          if score < 71:
+              print('❌ EVALUACIÓN FALLIDA: Se requiere un puntaje mínimo de 71 pts para aprobar.')
+              sys.exit(1)
+
+          print('🎉 ¡FELICITACIONES! Taller depurado y aprobado exitosamente.')
+          sys.exit(0)
+          "
