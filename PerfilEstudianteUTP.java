@@ -1,4 +1,5 @@
 /**@author Alexander Garriga 8-1042-1256 @version 1.0*/
+/**@author Melquisedec Medina 8-1051-683 @version 1.0*/
 public class PerfilEstudianteUTP {
 
     public static void main(String[] args) {
